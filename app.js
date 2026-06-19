@@ -1,3 +1,8 @@
+// ▼▼ 追加：画面切り替え用の要素を取得 ▼▼
+const landingPage = document.getElementById('landingPage');
+const gameScreen = document.getElementById('gameScreen');
+const startGameBtn = document.getElementById('startGameBtn');
+
 const playerList = document.getElementById('playerList');
 const board = document.getElementById('board');
 const resultZone = document.getElementById('resultZone');
@@ -39,13 +44,22 @@ async function loadData() {
     try {
         const response = await fetch('all_teams_2016_2024.json');
         allData = await response.json();
-        
         createBoardSlots();
-        startNextRound(); 
+        // ★ここにあった startNextRound() は削除し、スタートボタンが押された時に実行させます
     } catch (error) {
-        playerList.innerHTML = `<p style="color:red;">データの読み込みに失敗しました: ${error}</p>`;
+        alert("データの読み込みに失敗しました。");
     }
 }
+
+// ▼▼ 追加：スタートボタンが押されたときの処理 ▼▼
+startGameBtn.addEventListener('click', () => {
+    // LPを隠して、ゲーム画面を表示する
+    landingPage.style.display = 'none';
+    gameScreen.style.display = 'block';
+    
+    // ドラフト開始！
+    startNextRound();
+});
 
 function createBoardSlots() {
     board.innerHTML = '';
@@ -114,7 +128,6 @@ function displayPlayers() {
     let anyoneCanBeDrafted = false; 
 
     players.forEach(player => {
-        // ▼▼ 変更ポイント：重複チェックを「名前」から「名前＋選ばれた年度」に変更しました ▼▼
         const isAlreadyDrafted = Object.values(myTeam).some(p => p && p.name === player.name && p.year === currentRandomYear);
         if (isAlreadyDrafted) return;
 
@@ -254,4 +267,5 @@ retryBtn.addEventListener('click', () => {
     startNextRound();
 });
 
+// ゲーム起動時に裏側でデータを読み込んでおく
 loadData();
