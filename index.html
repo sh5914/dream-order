@@ -13,7 +13,11 @@
         
         /* ▼▼ 追加：LP（タイトル画面）のスタイル ▼▼ */
         .landing-page { text-align: center; margin-top: 8vh; max-width: 800px; margin-left: auto; margin-right: auto; }
-        .landing-page h1 { font-size: 48px; margin-bottom: 10px; }
+        .landing-page h1 { 
+          font-size: clamp(28px, 4vw, 48px); 
+          margin-bottom: 10px; 
+          word-break: keep-all; 
+}
         .landing-page .subtitle { font-size: 20px; color: #f1c40f; margin-bottom: 40px; font-weight: bold; }
         .rules-box { background: #162447; padding: 30px; border-radius: 10px; border: 2px solid #0f3460; text-align: left; margin-bottom: 40px; line-height: 1.8; }
         .rules-box h2 { color: #4ecc71; margin-top: 0; text-align: center; }
@@ -78,7 +82,10 @@
     </div>
 
     <div id="gameScreen" style="display: none;">
-        <h1>⚾ プロ野球 ドリームドラフトメーカー</h1>
+        <h1>
+          <span style="display: inline-block;">⚾ プロ野球</span>
+          <span style="display: inline-block;">ドリームドラフトメーカー</span>
+        </h1>
         <div class="container">
             <div class="draft-zone" id="draftZone">
                 <div class="draft-header">
