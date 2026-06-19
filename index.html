@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>プロ野球 ドリームドラフトメーカー</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <style>
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; padding: 20px; background-color: #1a1a2e; color: #fff; margin: 0; }
+        h1 { text-align: center; color: #e94560; margin-bottom: 20px; }
+        .container { display: flex; flex-direction: row; gap: 20px; max-width: 1200px; margin: 0 auto; justify-content: center; }
+        
+        .draft-zone { flex: 1; background: #162447; padding: 20px; border-radius: 10px; height: 80vh; overflow-y: auto; }
+        .draft-header { text-align: center; background: #0f3460; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #e94560; }
+        .round-text { font-size: 24px; font-weight: bold; color: #fff; margin: 0; }
+        .team-text { font-size: 32px; color: #f1c40f; margin: 10px 0; font-weight: bold; }
+        .redraw-btn { background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 16px; }
+        .redraw-btn:hover { background: #2980b9; }
+        .redraw-btn:disabled { background: #555; cursor: not-allowed; color: #aaa; }
+
+        .player-card { 
+            background: #1f4068; padding: 15px; margin-bottom: 12px; border-radius: 6px;
+            display: flex; flex-direction: column; gap: 10px; border-left: 5px solid #e94560;
+        }
+        .player-info { line-height: 1.4; display: flex; justify-content: space-between; align-items: center; }
+        
+        .action-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+        .draft-btn { 
+            background: #e94560; color: white; border: none; padding: 8px 12px; 
+            border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold;
+        }
+        .draft-btn:hover { background: #ff6b6b; }
+        .dh-btn { background: #9b59b6; } 
+        .dh-btn:hover { background: #8e44ad; }
+        .no-slot { color: #ff6b6b; font-size: 14px; font-weight: bold; }
+
+        .team-zone { width: 400px; background: #162447; border-radius: 10px; position: sticky; top: 20px; height: fit-content; }
+        .capture-area { padding: 20px; background: #162447; border-radius: 10px; } 
+        
+        .position-slot { 
+            background: #0f3460; padding: 12px; margin-bottom: 10px; border-radius: 6px;
+            display: flex; justify-content: space-between; border: 1px dashed #e94560;
+        }
+        .slot-title { font-weight: bold; color: #4ecc71; width: 80px; }
+        .slot-player { flex: 1; text-align: right; color: #fff; }
+
+        .result-zone { text-align: center; margin-top: 20px; padding: 15px; background: #0f3460; border-radius: 6px; display: none; }
+        .result-btn { 
+            background: #4ecc71; color: white; border: none; padding: 12px 30px; 
+            font-size: 18px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%;
+        }
+        .result-btn:hover { background: #2ecc71; }
+        .total-hr { font-size: 32px; color: #f1c40f; font-weight: bold; margin-top: 15px; margin-bottom: 15px;}
+        
+        .share-btn-group { display: flex; flex-direction: column; gap: 10px; }
+        .action-btn { border: none; padding: 12px; font-size: 16px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; color: white; }
+        .btn-save { background: #2ecc71; } .btn-save:hover { background: #27ae60; }
+        .btn-copy { background: #f39c12; } .btn-copy:hover { background: #e67e22; }
+        .btn-x { background: #000; } .btn-x:hover { background: #222; border: 1px solid #333;}
+        
+        /* ▼▼ 追加：「もう一度遊ぶ」ボタンのスタイル ▼▼ */
+        .btn-retry { background: #3498db; margin-top: 5px; } .btn-retry:hover { background: #2980b9; }
+    </style>
+</head>
+<body>
+
+    <h1>⚾ プロ野球 ドリームドラフトメーカー</h1>
+    
+    <div class="container">
+        <div class="draft-zone" id="draftZone">
+            <div class="draft-header">
+                <p class="round-text" id="roundText">第 1 巡 選択希望選手</p>
+                <p class="team-text" id="randomTeamText">--年 --</p>
+                <button id="redrawBtn" class="redraw-btn" onclick="useRedraw()">パスして引き直す（残り1回）</button>
+            </div>
+            <div id="playerList"></div>
+        </div>
+
+        <div class="team-zone">
+            <div id="captureArea" class="capture-area">
+                <h2>【獲得選手一覧】</h2>
+                <div id="board"></div>
+
+                <div id="resultZone" class="result-zone">
+                    <button id="resultBtn" class="result-btn">交渉権確定（結果発表）</button>
+                    <div id="hrResult" style="display: none;">
+                        <p>チーム合計ホームラン数</p>
+                        <div id="totalHrValue" class="total-hr">0本</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="shareControls" class="share-btn-group" style="display: none; padding: 0 20px 20px 20px;">
+                <button id="saveImgBtn" class="action-btn btn-save">画像を保存</button>
+                <button id="copyImgBtn" class="action-btn btn-copy">画像をコピー</button>
+                <button id="shareBtn" class="action-btn btn-x">𝕏 (Twitter) でシェアする</button>
+                <button id="retryBtn" class="action-btn btn-retry">もう一度遊ぶ</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
