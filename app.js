@@ -10,10 +10,9 @@ const draftZone = document.getElementById('draftZone');
 const redrawBtn = document.getElementById('redrawBtn');
 
 const shareControls = document.getElementById('shareControls');
-const shareBtn = document.getElementById('shareBtn');
 const saveImgBtn = document.getElementById('saveImgBtn');
 const copyImgBtn = document.getElementById('copyImgBtn');
-const retryBtn = document.getElementById('retryBtn'); // 追加
+const retryBtn = document.getElementById('retryBtn');
 const captureArea = document.getElementById('captureArea'); 
 
 let allData = {}; 
@@ -115,7 +114,8 @@ function displayPlayers() {
     let anyoneCanBeDrafted = false; 
 
     players.forEach(player => {
-        const isAlreadyDrafted = Object.values(myTeam).some(p => p && p.name === player.name);
+        // ▼▼ 変更ポイント：重複チェックを「名前」から「名前＋選ばれた年度」に変更しました ▼▼
+        const isAlreadyDrafted = Object.values(myTeam).some(p => p && p.name === player.name && p.year === currentRandomYear);
         if (isAlreadyDrafted) return;
 
         const div = document.createElement('div');
@@ -182,11 +182,8 @@ window.draftPlayer = function(name, pa, hr, chosenPosition) {
     startNextRound();
 }
 
-let shareText = ""; 
-
 resultBtn.addEventListener('click', () => {
     let totalHr = 0;
-    shareText = "⚾ 私のドリームチーム ⚾\n\n";
 
     POSITIONS.forEach(pos => {
         const player = myTeam[pos];
@@ -196,16 +193,10 @@ resultBtn.addEventListener('click', () => {
             
             document.getElementById(`player-name-${pos}`).innerHTML = 
                 `${player.year} ${player.name}（${abbr}） <span style="color:#f1c40f; font-weight:bold;">${player.hr}本</span>`;
-            
-            shareText += `【${pos}】${player.year} ${player.name}(${abbr}) ${player.hr}本\n`;
-        } else {
-            shareText += `【${pos}】未指名\n`;
         }
     });
 
     totalHrValue.textContent = `${totalHr} 本`;
-    shareText += `\n🔥合計ホームラン数：${totalHr}本🔥\n#プロ野球ドリームドラフトメーカー`;
-
     hrResult.style.display = 'block';
     resultBtn.style.display = 'none';
     shareControls.style.display = 'flex'; 
@@ -242,34 +233,24 @@ copyImgBtn.addEventListener('click', () => {
     }
 });
 
-shareBtn.addEventListener('click', () => {
-    const encodedText = encodeURIComponent(shareText);
-    window.open(`https://twitter.com/intent/tweet?text=${encodedText}`, '_blank');
-});
-
-// ▼▼ 追加：「もう一度遊ぶ」リセット処理 ▼▼
 retryBtn.addEventListener('click', () => {
-    // 1. 変数の初期化
     currentRound = 1;
     redrawsLeft = 1;
     myTeam = {
         "捕手": null, "一塁手": null, "二塁手": null, "三塁手": null,
-        "遊撃手": null, "左翼手": null, "中堅手": null, "right枠": null, "DH": null
+        "遊撃手": null, "左翼手": null, "中堅手": null, "右翼手": null, "DH": null
     };
-    POSITIONS.forEach(pos => myTeam[pos] = null); // 綺麗にクリア
 
-    // 2. 画面表示の初期化
-    createBoardSlots();                     // 獲得ボードを「未指名」に戻す
+    createBoardSlots();                     
     redrawBtn.textContent = "パスして引き直す（残り1回）";
-    redrawBtn.disabled = false;            // 引き直しボタンを復活
+    redrawBtn.disabled = false;            
     
-    hrResult.style.display = 'none';       // ホームラン合計を隠す
-    resultZone.style.display = 'none';     // 結果エリアを隠す
-    resultBtn.style.display = 'block';     // 結果発表ボタンを復活
-    shareControls.style.display = 'none';  // シェアボタン群を隠す
-    draftZone.style.display = 'block';     // ドラフト会場を再表示
+    hrResult.style.display = 'none';       
+    resultZone.style.display = 'none';     
+    resultBtn.style.display = 'block';     
+    shareControls.style.display = 'none';  
+    draftZone.style.display = 'block';     
 
-    // 3. ゲームの再スタート
     startNextRound();
 });
 
