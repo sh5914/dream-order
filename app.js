@@ -3,7 +3,7 @@ const gameScreen = document.getElementById('gameScreen');
 const startGameBtn = document.getElementById('startGameBtn');
 const startPracticeBtn = document.getElementById('startPracticeBtn');
 const practiceBadge = document.getElementById('practiceBadge');
-const resetGameBtn = document.getElementById('resetGameBtn'); // ★追加
+const resetGameBtn = document.getElementById('resetGameBtn'); 
 
 const playerList = document.getElementById('playerList');
 const board = document.getElementById('board');
@@ -68,7 +68,7 @@ async function loadData() {
 startGameBtn.addEventListener('click', () => {
     isPracticeMode = false; 
     practiceBadge.style.display = 'none'; 
-    resetGameBtn.style.display = 'none'; // ★本番ではやり直しボタンを隠す
+    resetGameBtn.style.display = 'none'; 
     landingPage.style.display = 'none';
     draftZone.style.display = 'block'; 
     gameScreen.style.display = 'block';
@@ -78,39 +78,34 @@ startGameBtn.addEventListener('click', () => {
 startPracticeBtn.addEventListener('click', () => {
     isPracticeMode = true; 
     practiceBadge.style.display = 'inline-block'; 
-    resetGameBtn.style.display = 'block'; // ★練習モードでは表示する！
+    resetGameBtn.style.display = 'block'; 
     landingPage.style.display = 'none';
     draftZone.style.display = 'block'; 
     gameScreen.style.display = 'block';
     startNextRound();
 });
 
-// ▼▼ 追加：やり直すボタンの処理 ▼▼
+// ▼▼ 変更：確認なしで即座に練習モードをはじめからやり直す処理 ▼▼
 resetGameBtn.addEventListener('click', () => {
-    // 間違えて押さないように確認メッセージを出す
-    if (confirm("ドラフトを中断してタイトルに戻りますか？")) {
-        currentRound = 1;
-        redrawsLeft = 1;
-        myTeam = {
-            "捕手": null, "一塁手": null, "二塁手": null, "三塁手": null,
-            "遊撃手": null, "左翼手": null, "中堅手": null, "右翼手": null, "DH": null
-        };
+    // 確認のポップアップを出さずに、一瞬でデータを初期化して次のドラフトを始める！
+    currentRound = 1;
+    redrawsLeft = 1;
+    myTeam = {
+        "捕手": null, "一塁手": null, "二塁手": null, "三塁手": null,
+        "遊撃手": null, "左翼手": null, "中堅手": null, "右翼手": null, "DH": null
+    };
 
-        createBoardSlots();                     
-        redrawBtn.textContent = "パスして引き直す（残り1回）";
-        redrawBtn.disabled = false;            
-        
-        hrResult.style.display = 'none';       
-        resultZone.style.display = 'none';     
-        resultBtn.style.display = 'block';     
-        shareControls.style.display = 'none';  
-        
-        // タイトル画面に戻る
-        gameScreen.style.display = 'none';     
-        landingPage.style.display = 'block'; 
-    }
+    createBoardSlots();                     
+    redrawBtn.textContent = "パスして引き直す（残り1回）";
+    redrawBtn.disabled = false;            
+    
+    hrResult.style.display = 'none';       
+    resultZone.style.display = 'none';     
+    resultBtn.style.display = 'block';     
+    shareControls.style.display = 'none';  
+    
+    startNextRound(); 
 });
-// ▲▲ ここまで ▲▲
 
 function createBoardSlots() {
     board.innerHTML = '';
