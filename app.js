@@ -1,3 +1,4 @@
+// ▼▼ 画面切り替え用の要素を取得 ▼▼
 const landingPage = document.getElementById('landingPage');
 const gameScreen = document.getElementById('gameScreen');
 const startGameBtn = document.getElementById('startGameBtn');
@@ -43,14 +44,16 @@ let redrawsLeft = 1;
 let currentRandomYear = "";
 let currentRandomTeam = "";
 
+// ▼ データ読み込み機能 ▼
 async function loadData() {
     try {
+        // ★注目：あなたが遊びたい「2016_2024」のファイル名にしています！
         const response = await fetch('all_teams_2016_2024.json');
         allData = await response.json();
         
         createBoardSlots();
         
-        // データが完全に読み込めたら、両方のボタンを押せるようにする
+        // データが完全に読み込めたら、両方のボタンを活性化させる！
         startGameBtn.textContent = "本番ドラフトを開始";
         startGameBtn.disabled = false;
         
@@ -65,18 +68,18 @@ async function loadData() {
     }
 }
 
-// ▼ 本番スタートボタン ▼
+// ▼ 本番スタートボタンの処理 ▼
 startGameBtn.addEventListener('click', () => {
-    isPracticeMode = false;
+    isPracticeMode = false; // 本番モード
     practiceBadge.style.display = 'none'; // バッジを隠す
     landingPage.style.display = 'none';
     gameScreen.style.display = 'block';
     startNextRound();
 });
 
-// ▼ 練習モードスタートボタン ▼
+// ▼ 練習モードスタートボタンの処理 ▼
 startPracticeBtn.addEventListener('click', () => {
-    isPracticeMode = true;
+    isPracticeMode = true; // 練習モード
     practiceBadge.style.display = 'inline-block'; // バッジを表示
     landingPage.style.display = 'none';
     gameScreen.style.display = 'block';
@@ -150,6 +153,7 @@ function displayPlayers() {
     let anyoneCanBeDrafted = false; 
 
     players.forEach(player => {
+        // 同姓同名でも年度が違えば選べる
         const isAlreadyDrafted = Object.values(myTeam).some(p => p && p.name === player.name && p.year === currentRandomYear);
         if (isAlreadyDrafted) return;
 
@@ -178,7 +182,7 @@ function displayPlayers() {
             buttonsHtml = `<span class="no-slot">※配置できる空き枠がありません</span>`;
         }
 
-        // ▼★変更：練習モードならホームラン数も表示する！▼
+        // ▼★変更ポイント：練習モードならホームラン数も表示する！▼
         let hrDisplay = isPracticeMode ? ` | <span style="color:#f1c40f; font-weight:bold;">HR: ${player.hr}本</span>` : "";
 
         div.innerHTML = `
@@ -300,4 +304,5 @@ retryBtn.addEventListener('click', () => {
     landingPage.style.display = 'block';     
 });
 
+// ▼ ゲーム起動時に裏側でデータを読み込む ▼
 loadData();
