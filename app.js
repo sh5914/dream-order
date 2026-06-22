@@ -12,6 +12,7 @@ const resultBtn = document.getElementById('resultBtn');
 const hrResult = document.getElementById('hrResult');
 const totalHrValue = document.getElementById('totalHrValue');
 const resultTitle = document.getElementById('resultTitle');
+const optimalResult = document.getElementById('optimalResult'); // 追加
 const roundText = document.getElementById('roundText');
 const randomTeamText = document.getElementById('randomTeamText');
 const draftZone = document.getElementById('draftZone');
@@ -25,9 +26,8 @@ const captureArea = document.getElementById('captureArea');
 
 let allData = {}; 
 let isPracticeMode = false; 
-
-// ▼▼ 追加：すでに出現した「年度＋球団」を記憶するリスト ▼▼
 let usedTeams = []; 
+let seenTeamsHistory = []; // ★追加：DFS計算用に「出現した全チーム」を保存する配列
 
 const POSITIONS = ["捕手", "一塁手", "二塁手", "三塁手", "遊撃手", "左翼手", "中堅手", "右翼手", "DH"];
 
@@ -51,12 +51,10 @@ async function loadData() {
     try {
         const response = await fetch('all_teams_2016_2024.json');
         allData = await response.json();
-        
         createBoardSlots();
         
         startGameBtn.textContent = "本番ドラフトを開始";
         startGameBtn.disabled = false;
-        
         startPracticeBtn.textContent = "練習モードで開始";
         startPracticeBtn.disabled = false;
 
@@ -76,7 +74,8 @@ startGameBtn.addEventListener('click', () => {
     draftZone.style.display = 'block'; 
     gameScreen.style.display = 'block';
     
-    usedTeams = []; // ★ゲーム開始時に履歴をリセット
+    usedTeams = []; 
+    seenTeamsHistory = []; // 初期化
     startNextRound();
 });
 
@@ -88,7 +87,8 @@ startPracticeBtn.addEventListener('click', () => {
     draftZone.style.display = 'block'; 
     gameScreen.style.display = 'block';
     
-    usedTeams = []; // ★ゲーム開始時に履歴をリセット
+    usedTeams = []; 
+    seenTeamsHistory = []; // 初期化
     startNextRound();
 });
 
@@ -99,13 +99,15 @@ resetGameBtn.addEventListener('click', () => {
         "捕手": null, "一塁手": null, "二塁手": null, "三塁手": null,
         "遊撃手": null, "左翼手": null, "中堅手": null, "右翼手": null, "DH": null
     };
-    usedTeams = []; // ★やり直し時に履歴をリセット
+    usedTeams = []; 
+    seenTeamsHistory = []; // 初期化
 
     createBoardSlots();                     
     redrawBtn.textContent = "パスして引き直す（残り1回）";
     redrawBtn.disabled = false;            
     
     hrResult.style.display = 'none';       
+    optimalResult.style.display = 'none';
     resultZone.style.display = 'none';     
     resultBtn.style.display = 'block';     
     shareControls.style.display = 'none';  
@@ -127,33 +129,34 @@ function createBoardSlots() {
     });
 }
 
-// ▼▼ 変更：被りを防止するガチャ機能 ▼▼
 function rollTeam() {
     const years = Object.keys(allData);
     
     while (true) {
-        // ランダムに選ぶ
         let tempYear = years[Math.floor(Math.random() * years.length)];
         const teams = Object.keys(allData[tempYear]);
         let tempTeam = teams[Math.floor(Math.random() * teams.length)];
         
-        // 「2016_広島」のような合体キーワードを作る
         let comboKey = `${tempYear}_${tempTeam}`;
         
-        // もし履歴リストにこのキーワードが入っていなければ、採用してループを抜ける！
         if (!usedTeams.includes(comboKey)) {
             currentRandomYear = tempYear;
             currentRandomTeam = tempTeam;
-            usedTeams.push(comboKey); // 履歴に追加
+            usedTeams.push(comboKey); 
+            
+            // ★出現したチームの詳細データを履歴に保存する
+            seenTeamsHistory.push({
+                year: tempYear,
+                team: tempTeam,
+                players: allData[tempYear][tempTeam]
+            });
             break;
         }
-        // 被っていたら、もう一度 while ループの最初に戻って引き直す
     }
 
     randomTeamText.textContent = `${currentRandomYear}年 ${currentRandomTeam}`;
     displayPlayers();
 }
-// ▲▲ ここまで ▲▲
 
 window.startNextRound = function() {
     if (currentRound > MAX_ROUNDS) {
@@ -266,6 +269,66 @@ window.draftPlayer = function(name, pa, hr, chosenPosition) {
     startNextRound();
 }
 
+// ▼▼ 追加：理論上の最強スタメンを計算するDFSアルゴリズム ▼▼
+function calculateOptimalDraft(historyTeams) {
+    const N = historyTeams.length; 
+    const maxMatrix = historyTeams.map(teamData => {
+        const posBest = {};
+        POSITIONS.forEach(pos => {
+            let bestPlayer = null;
+            teamData.players.forEach(p => {
+                if (pos === "DH" || p.positions.includes(pos)) {
+                    if (!bestPlayer || p.hr > bestPlayer.hr) {
+                        bestPlayer = p;
+                    }
+                }
+            });
+            posBest[pos] = bestPlayer;
+        });
+        return posBest; 
+    });
+
+    let bestTotalHr = -1;
+    let bestAssignment = null;
+
+    function dfs(posIndex, usedMask, currentTotalHr, currentAssignment) {
+        if (posIndex === POSITIONS.length) {
+            if (currentTotalHr > bestTotalHr) {
+                bestTotalHr = currentTotalHr;
+                bestAssignment = [...currentAssignment];
+            }
+            return;
+        }
+
+        const pos = POSITIONS[posIndex];
+        let assigned = false;
+        
+        for (let i = 0; i < N; i++) {
+            if ((usedMask & (1 << i)) === 0) {
+                const bestPlayer = maxMatrix[i][pos];
+                if (bestPlayer) {
+                    assigned = true;
+                    currentAssignment.push({
+                        year: historyTeams[i].year, team: historyTeams[i].team, pos: pos, player: bestPlayer
+                    });
+                    dfs(posIndex + 1, usedMask | (1 << i), currentTotalHr + bestPlayer.hr, currentAssignment);
+                    currentAssignment.pop();
+                }
+            }
+        }
+        
+        if (!assigned) {
+            currentAssignment.push({ year: "----", team: "該当なし", pos: pos, player: {name:"未指名", hr:0} });
+            dfs(posIndex + 1, usedMask, currentTotalHr, currentAssignment);
+            currentAssignment.pop();
+        }
+    }
+
+    dfs(0, 0, 0, []);
+    return { maxHr: bestTotalHr, optimalLineup: bestAssignment };
+}
+// ▲▲ ここまで ▲▲
+
 resultBtn.addEventListener('click', () => {
     let totalHr = 0;
 
@@ -274,7 +337,6 @@ resultBtn.addEventListener('click', () => {
         if (player) {
             totalHr += player.hr;
             const abbr = TEAM_ABBR[player.team] || player.team; 
-            
             document.getElementById(`player-name-${pos}`).innerHTML = 
                 `${player.year} ${player.name}（${abbr}） <span style="color:#f1c40f; font-weight:bold;">${player.hr}本</span>`;
         }
@@ -287,6 +349,34 @@ resultBtn.addEventListener('click', () => {
     }
 
     totalHrValue.textContent = `${totalHr} 本`;
+    
+    // ▼▼ 追加：結果発表時に最適解を計算して表示する ▼▼
+    const optimal = calculateOptimalDraft(seenTeamsHistory);
+    let optimalHtml = `<div style="margin-top:20px; padding:15px; background:#1f4068; border-radius:6px; border:1px solid #e94560;">`;
+    
+    if (totalHr >= optimal.maxHr) {
+        optimalHtml += `<h3 style="color:#f1c40f; margin-top:0; margin-bottom:10px;">👑 理論値達成！: ${optimal.maxHr}本</h3>`;
+        optimalHtml += `<p style="color:#4ecc71; font-weight:bold; margin:0;">パーフェクト！あなたは最強の監督です！</p>`;
+    } else {
+        let diff = optimal.maxHr - totalHr;
+        optimalHtml += `<h3 style="color:#f1c40f; margin-top:0; margin-bottom:10px;">💡 理論上の最適解: ${optimal.maxHr}本</h3>`;
+        optimalHtml += `<p style="margin-top:0; font-weight:bold; color:#ff6b6b;">あと ${diff} 本伸ばせました...！<br><span style="font-size:12px; color:#aaa;">（※スキップした球団も含めた最大値）</span></p>`;
+        optimalHtml += `<div style="font-size:13px; text-align:left; background:#0f3460; padding:10px; border-radius:4px;">`;
+        POSITIONS.forEach(pos => {
+            let optP = optimal.optimalLineup.find(o => o.pos === pos);
+            if(optP && optP.year !== "----") {
+                let abbr = TEAM_ABBR[optP.team] || optP.team;
+                optimalHtml += `<div style="margin-bottom:4px;"><span style="color:#4ecc71; width:50px; display:inline-block;">${pos}</span> ${optP.year} ${optP.player.name}(${abbr}) : ${optP.player.hr}本</div>`;
+            }
+        });
+        optimalHtml += `</div>`;
+    }
+    optimalHtml += `</div>`;
+    
+    optimalResult.innerHTML = optimalHtml;
+    optimalResult.style.display = 'block';
+    // ▲▲ ここまで ▲▲
+
     hrResult.style.display = 'block';
     resultBtn.style.display = 'none';
     shareControls.style.display = 'flex'; 
@@ -330,13 +420,15 @@ retryBtn.addEventListener('click', () => {
         "捕手": null, "一塁手": null, "二塁手": null, "三塁手": null,
         "遊撃手": null, "左翼手": null, "中堅手": null, "右翼手": null, "DH": null
     };
-    usedTeams = []; // ★リプレイ時に履歴をリセット
+    usedTeams = []; 
+    seenTeamsHistory = []; // 初期化
 
     createBoardSlots();                     
     redrawBtn.textContent = "パスして引き直す（残り1回）";
     redrawBtn.disabled = false;            
     
     hrResult.style.display = 'none';       
+    optimalResult.style.display = 'none'; // 初期化
     resultZone.style.display = 'none';     
     resultBtn.style.display = 'block';     
     shareControls.style.display = 'none';  

@@ -37,7 +37,6 @@
         .redraw-btn:hover { background: #2980b9; }
         .redraw-btn:disabled { background: #555; cursor: not-allowed; color: #aaa; }
         
-        /* ▼ 追加：やり直すボタンのスタイル ▼ */
         .reset-btn { background: #e74c3c; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 16px; display: none; }
         .reset-btn:hover { background: #c0392b; }
 
@@ -135,6 +134,7 @@
                         <div id="hrResult" style="display: none;">
                             <p id="resultTitle">チーム合計ホームラン数</p>
                             <div id="totalHrValue" class="total-hr">0本</div>
+                            <div id="optimalResult" style="display: none;"></div>
                         </div>
                     </div>
                 </div>
@@ -148,6 +148,6 @@
         </div>
     </div>
 
-    <script src="app.js?v=4"></script>
+    <script src="app.js?v=8"></script>
 </body>
 </html>
