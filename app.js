@@ -1,9 +1,9 @@
-// ▼▼ 画面切り替え用の要素を取得 ▼▼
 const landingPage = document.getElementById('landingPage');
 const gameScreen = document.getElementById('gameScreen');
 const startGameBtn = document.getElementById('startGameBtn');
-const startPracticeBtn = document.getElementById('startPracticeBtn'); // 追加
-const practiceBadge = document.getElementById('practiceBadge'); // 追加
+const startPracticeBtn = document.getElementById('startPracticeBtn');
+const practiceBadge = document.getElementById('practiceBadge');
+const resetGameBtn = document.getElementById('resetGameBtn'); // ★追加
 
 const playerList = document.getElementById('playerList');
 const board = document.getElementById('board');
@@ -11,7 +11,7 @@ const resultZone = document.getElementById('resultZone');
 const resultBtn = document.getElementById('resultBtn');
 const hrResult = document.getElementById('hrResult');
 const totalHrValue = document.getElementById('totalHrValue');
-const resultTitle = document.getElementById('resultTitle'); // 追加
+const resultTitle = document.getElementById('resultTitle');
 const roundText = document.getElementById('roundText');
 const randomTeamText = document.getElementById('randomTeamText');
 const draftZone = document.getElementById('draftZone');
@@ -24,7 +24,7 @@ const retryBtn = document.getElementById('retryBtn');
 const captureArea = document.getElementById('captureArea'); 
 
 let allData = {}; 
-let isPracticeMode = false; // ★ 練習モードかどうかのフラグ
+let isPracticeMode = false; 
 
 const POSITIONS = ["捕手", "一塁手", "二塁手", "三塁手", "遊撃手", "左翼手", "中堅手", "右翼手", "DH"];
 
@@ -44,16 +44,13 @@ let redrawsLeft = 1;
 let currentRandomYear = "";
 let currentRandomTeam = "";
 
-// ▼ データ読み込み機能 ▼
 async function loadData() {
     try {
-        // ★注目：あなたが遊びたい「2016_2024」のファイル名にしています！
         const response = await fetch('all_teams_2016_2024.json');
         allData = await response.json();
         
         createBoardSlots();
         
-        // データが完全に読み込めたら、両方のボタンを活性化させる！
         startGameBtn.textContent = "本番ドラフトを開始";
         startGameBtn.disabled = false;
         
@@ -68,23 +65,52 @@ async function loadData() {
     }
 }
 
-// ▼ 本番スタートボタンの処理 ▼
 startGameBtn.addEventListener('click', () => {
-    isPracticeMode = false; // 本番モード
-    practiceBadge.style.display = 'none'; // バッジを隠す
+    isPracticeMode = false; 
+    practiceBadge.style.display = 'none'; 
+    resetGameBtn.style.display = 'none'; // ★本番ではやり直しボタンを隠す
     landingPage.style.display = 'none';
+    draftZone.style.display = 'block'; 
     gameScreen.style.display = 'block';
     startNextRound();
 });
 
-// ▼ 練習モードスタートボタンの処理 ▼
 startPracticeBtn.addEventListener('click', () => {
-    isPracticeMode = true; // 練習モード
-    practiceBadge.style.display = 'inline-block'; // バッジを表示
+    isPracticeMode = true; 
+    practiceBadge.style.display = 'inline-block'; 
+    resetGameBtn.style.display = 'block'; // ★練習モードでは表示する！
     landingPage.style.display = 'none';
+    draftZone.style.display = 'block'; 
     gameScreen.style.display = 'block';
     startNextRound();
 });
+
+// ▼▼ 追加：やり直すボタンの処理 ▼▼
+resetGameBtn.addEventListener('click', () => {
+    // 間違えて押さないように確認メッセージを出す
+    if (confirm("ドラフトを中断してタイトルに戻りますか？")) {
+        currentRound = 1;
+        redrawsLeft = 1;
+        myTeam = {
+            "捕手": null, "一塁手": null, "二塁手": null, "三塁手": null,
+            "遊撃手": null, "左翼手": null, "中堅手": null, "右翼手": null, "DH": null
+        };
+
+        createBoardSlots();                     
+        redrawBtn.textContent = "パスして引き直す（残り1回）";
+        redrawBtn.disabled = false;            
+        
+        hrResult.style.display = 'none';       
+        resultZone.style.display = 'none';     
+        resultBtn.style.display = 'block';     
+        shareControls.style.display = 'none';  
+        
+        // タイトル画面に戻る
+        gameScreen.style.display = 'none';     
+        landingPage.style.display = 'block'; 
+    }
+});
+// ▲▲ ここまで ▲▲
 
 function createBoardSlots() {
     board.innerHTML = '';
@@ -153,7 +179,6 @@ function displayPlayers() {
     let anyoneCanBeDrafted = false; 
 
     players.forEach(player => {
-        // 同姓同名でも年度が違えば選べる
         const isAlreadyDrafted = Object.values(myTeam).some(p => p && p.name === player.name && p.year === currentRandomYear);
         if (isAlreadyDrafted) return;
 
@@ -182,7 +207,6 @@ function displayPlayers() {
             buttonsHtml = `<span class="no-slot">※配置できる空き枠がありません</span>`;
         }
 
-        // ▼★変更ポイント：練習モードならホームラン数も表示する！▼
         let hrDisplay = isPracticeMode ? ` | <span style="color:#f1c40f; font-weight:bold;">HR: ${player.hr}本</span>` : "";
 
         div.innerHTML = `
@@ -238,7 +262,6 @@ resultBtn.addEventListener('click', () => {
         }
     });
 
-    // ▼★変更：結果画面のテキストに「(練習モード)」を付け足す処理▼
     if (isPracticeMode) {
         resultTitle.innerHTML = `チーム合計ホームラン数 <br><span style="font-size:16px; color:#aaa;">※練習モードの記録です</span>`;
     } else {
@@ -299,13 +322,10 @@ retryBtn.addEventListener('click', () => {
     resultBtn.style.display = 'block';     
     shareControls.style.display = 'none';  
     
-    // ▼▼★これを追加：隠れたドラフト会場を再び表示させる！▼▼
-    draftZone.style.display = 'block';     
+    draftZone.style.display = 'block'; 
     
-    // ゲーム画面を隠して、再びLP（タイトル画面）に戻る
     gameScreen.style.display = 'none';     
     landingPage.style.display = 'block';     
 });
 
-// ▼ ゲーム起動時に裏側でデータを読み込む ▼
 loadData();

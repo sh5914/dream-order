@@ -16,13 +16,11 @@
         .rules-box { background: #162447; padding: 30px; border-radius: 10px; border: 2px solid #0f3460; text-align: left; margin-bottom: 40px; line-height: 1.8; }
         .rules-box h2 { color: #4ecc71; margin-top: 0; text-align: center; }
         
-        /* ▼ ボタン周りのレイアウト調整 ▼ */
         .btn-container { display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; }
         .start-btn { background: #e94560; color: white; border: none; padding: 20px 40px; font-size: 24px; font-weight: bold; border-radius: 50px; cursor: pointer; transition: transform 0.2s; box-shadow: 0 4px 15px rgba(233, 69, 96, 0.4); flex: 1; min-width: 250px; max-width: 350px; }
         .start-btn:hover:not(:disabled) { background: #ff6b6b; transform: scale(1.05); }
         .start-btn:disabled { background: #555; cursor: not-allowed; box-shadow: none; color: #aaa; }
         
-        /* 練習モード用ボタンの色 */
         .practice-btn { background: #2980b9; box-shadow: 0 4px 15px rgba(41, 128, 185, 0.4); }
         .practice-btn:hover:not(:disabled) { background: #3498db; }
         .practice-badge { background: #f39c12; color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 16px; margin-left: 10px; vertical-align: middle; display: none; font-weight: bold; }
@@ -34,9 +32,14 @@
         .draft-header { text-align: center; background: #0f3460; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #e94560; }
         .round-text { font-size: 24px; font-weight: bold; color: #fff; margin: 0; }
         .team-text { font-size: 32px; color: #f1c40f; margin: 10px 0; font-weight: bold; }
+        
         .redraw-btn { background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 16px; }
         .redraw-btn:hover { background: #2980b9; }
         .redraw-btn:disabled { background: #555; cursor: not-allowed; color: #aaa; }
+        
+        /* ▼ 追加：やり直すボタンのスタイル ▼ */
+        .reset-btn { background: #e74c3c; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 16px; display: none; }
+        .reset-btn:hover { background: #c0392b; }
 
         .player-card { background: #1f4068; padding: 15px; margin-bottom: 12px; border-radius: 6px; display: flex; flex-direction: column; gap: 10px; border-left: 5px solid #e94560; }
         .player-info { line-height: 1.4; display: flex; justify-content: space-between; align-items: center; }
@@ -114,7 +117,10 @@
                 <div class="draft-header">
                     <p class="round-text" id="roundText">第 1 巡 選択希望選手</p>
                     <p class="team-text" id="randomTeamText">--年 --</p>
-                    <button id="redrawBtn" class="redraw-btn" onclick="useRedraw()">パスして引き直す（残り1回）</button>
+                    <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                        <button id="redrawBtn" class="redraw-btn" onclick="useRedraw()">パスして引き直す（残り1回）</button>
+                        <button id="resetGameBtn" class="reset-btn">最初からやり直す</button>
+                    </div>
                 </div>
                 <div id="playerList"></div>
             </div>
@@ -142,6 +148,6 @@
         </div>
     </div>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=4"></script>
 </body>
 </html>
