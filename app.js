@@ -299,7 +299,10 @@ retryBtn.addEventListener('click', () => {
     resultBtn.style.display = 'block';     
     shareControls.style.display = 'none';  
     
-    // ゲーム画面を隠して、再びLP（タイトル画面）に戻るようにしました！
+    // ▼▼★これを追加：隠れたドラフト会場を再び表示させる！▼▼
+    draftZone.style.display = 'block';     
+    
+    // ゲーム画面を隠して、再びLP（タイトル画面）に戻る
     gameScreen.style.display = 'none';     
     landingPage.style.display = 'block';     
 });
