@@ -26,6 +26,9 @@ const captureArea = document.getElementById('captureArea');
 let allData = {}; 
 let isPracticeMode = false; 
 
+// ▼▼ 追加：すでに出現した「年度＋球団」を記憶するリスト ▼▼
+let usedTeams = []; 
+
 const POSITIONS = ["捕手", "一塁手", "二塁手", "三塁手", "遊撃手", "左翼手", "中堅手", "右翼手", "DH"];
 
 const TEAM_ABBR = {
@@ -72,6 +75,8 @@ startGameBtn.addEventListener('click', () => {
     landingPage.style.display = 'none';
     draftZone.style.display = 'block'; 
     gameScreen.style.display = 'block';
+    
+    usedTeams = []; // ★ゲーム開始時に履歴をリセット
     startNextRound();
 });
 
@@ -82,18 +87,19 @@ startPracticeBtn.addEventListener('click', () => {
     landingPage.style.display = 'none';
     draftZone.style.display = 'block'; 
     gameScreen.style.display = 'block';
+    
+    usedTeams = []; // ★ゲーム開始時に履歴をリセット
     startNextRound();
 });
 
-// ▼▼ 変更：確認なしで即座に練習モードをはじめからやり直す処理 ▼▼
 resetGameBtn.addEventListener('click', () => {
-    // 確認のポップアップを出さずに、一瞬でデータを初期化して次のドラフトを始める！
     currentRound = 1;
     redrawsLeft = 1;
     myTeam = {
         "捕手": null, "一塁手": null, "二塁手": null, "三塁手": null,
         "遊撃手": null, "左翼手": null, "中堅手": null, "右翼手": null, "DH": null
     };
+    usedTeams = []; // ★やり直し時に履歴をリセット
 
     createBoardSlots();                     
     redrawBtn.textContent = "パスして引き直す（残り1回）";
@@ -121,16 +127,33 @@ function createBoardSlots() {
     });
 }
 
+// ▼▼ 変更：被りを防止するガチャ機能 ▼▼
 function rollTeam() {
     const years = Object.keys(allData);
-    currentRandomYear = years[Math.floor(Math.random() * years.length)];
-
-    const teams = Object.keys(allData[currentRandomYear]);
-    currentRandomTeam = teams[Math.floor(Math.random() * teams.length)];
+    
+    while (true) {
+        // ランダムに選ぶ
+        let tempYear = years[Math.floor(Math.random() * years.length)];
+        const teams = Object.keys(allData[tempYear]);
+        let tempTeam = teams[Math.floor(Math.random() * teams.length)];
+        
+        // 「2016_広島」のような合体キーワードを作る
+        let comboKey = `${tempYear}_${tempTeam}`;
+        
+        // もし履歴リストにこのキーワードが入っていなければ、採用してループを抜ける！
+        if (!usedTeams.includes(comboKey)) {
+            currentRandomYear = tempYear;
+            currentRandomTeam = tempTeam;
+            usedTeams.push(comboKey); // 履歴に追加
+            break;
+        }
+        // 被っていたら、もう一度 while ループの最初に戻って引き直す
+    }
 
     randomTeamText.textContent = `${currentRandomYear}年 ${currentRandomTeam}`;
     displayPlayers();
 }
+// ▲▲ ここまで ▲▲
 
 window.startNextRound = function() {
     if (currentRound > MAX_ROUNDS) {
@@ -307,6 +330,7 @@ retryBtn.addEventListener('click', () => {
         "捕手": null, "一塁手": null, "二塁手": null, "三塁手": null,
         "遊撃手": null, "左翼手": null, "中堅手": null, "右翼手": null, "DH": null
     };
+    usedTeams = []; // ★リプレイ時に履歴をリセット
 
     createBoardSlots();                     
     redrawBtn.textContent = "パスして引き直す（残り1回）";
