@@ -10,19 +10,23 @@
     <style>
         body { font-family: 'Helvetica Neue', Arial, sans-serif; padding: 20px; background-color: #1a1a2e; color: #fff; margin: 0; }
         
-        /* ▼ LP（タイトル画面）のスタイル ▼ */
         .landing-page { text-align: center; margin-top: 8vh; max-width: 800px; margin-left: auto; margin-right: auto; }
-        /* 文字サイズを自動調整し、変な改行を防ぐ */
         .landing-page h1 { font-size: clamp(28px, 4vw, 48px); margin-bottom: 10px; word-break: keep-all; color: #e94560; }
         .landing-page .subtitle { font-size: 20px; color: #f1c40f; margin-bottom: 40px; font-weight: bold; }
         .rules-box { background: #162447; padding: 30px; border-radius: 10px; border: 2px solid #0f3460; text-align: left; margin-bottom: 40px; line-height: 1.8; }
         .rules-box h2 { color: #4ecc71; margin-top: 0; text-align: center; }
         
-        .start-btn { background: #e94560; color: white; border: none; padding: 20px 60px; font-size: 28px; font-weight: bold; border-radius: 50px; cursor: pointer; transition: transform 0.2s; box-shadow: 0 4px 15px rgba(233, 69, 96, 0.4); }
+        /* ▼ ボタン周りのレイアウト調整 ▼ */
+        .btn-container { display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; }
+        .start-btn { background: #e94560; color: white; border: none; padding: 20px 40px; font-size: 24px; font-weight: bold; border-radius: 50px; cursor: pointer; transition: transform 0.2s; box-shadow: 0 4px 15px rgba(233, 69, 96, 0.4); flex: 1; min-width: 250px; max-width: 350px; }
         .start-btn:hover:not(:disabled) { background: #ff6b6b; transform: scale(1.05); }
-        .start-btn:disabled { background: #555; cursor: not-allowed; box-shadow: none; color: #aaa; } /* 読み込み中のスタイル */
+        .start-btn:disabled { background: #555; cursor: not-allowed; box-shadow: none; color: #aaa; }
+        
+        /* 練習モード用ボタンの色 */
+        .practice-btn { background: #2980b9; box-shadow: 0 4px 15px rgba(41, 128, 185, 0.4); }
+        .practice-btn:hover:not(:disabled) { background: #3498db; }
+        .practice-badge { background: #f39c12; color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 16px; margin-left: 10px; vertical-align: middle; display: none; font-weight: bold; }
 
-        /* ▼ ゲーム画面のスタイル ▼ */
         .container { display: flex; flex-direction: row; gap: 20px; max-width: 1200px; margin: 0 auto; justify-content: center; }
         #gameScreen h1 { text-align: center; color: #e94560; margin-bottom: 20px; font-size: clamp(24px, 3vw, 36px); word-break: keep-all; }
         
@@ -60,6 +64,18 @@
         .btn-save { background: #2ecc71; } .btn-save:hover { background: #27ae60; }
         .btn-copy { background: #f39c12; } .btn-copy:hover { background: #e67e22; }
         .btn-retry { background: #3498db; margin-top: 5px; } .btn-retry:hover { background: #2980b9; }
+
+        @media screen and (max-width: 768px) {
+            body { padding: 10px; }
+            .container { flex-direction: column; align-items: center; }
+            .draft-zone { width: 100%; box-sizing: border-box; height: 55vh; padding: 15px; }
+            .team-zone { width: 100%; box-sizing: border-box; position: static; }
+            .capture-area { padding: 15px; }
+            .start-btn { width: 100%; padding: 15px; font-size: 20px; box-sizing: border-box; }
+            .team-text { font-size: 28px; }
+            .round-text { font-size: 20px; }
+            .practice-badge { display: block; margin-top: 10px; margin-left: 0; width: fit-content; margin-inline: auto; }
+        }
     </style>
 </head>
 <body>
@@ -76,18 +92,22 @@
             <ul>
                 <li>ランダムに提示される「年度」と「球団」の中から、選手を1名指名します。（全9巡）</li>
                 <li>DHを含む全9ポジションを埋めるとドラフト終了です。</li>
-                <li><strong>選手のホームラン数は結果発表まで秘密！</strong> 打席数とあなたの記憶を頼りに、最もHRを打っていそうな選手を見極めてください。</li>
+                <li><strong>選手のホームラン数は結果発表まで秘密！</strong> 打席数と記憶を頼りに指名してください。</li>
                 <li>どうしても欲しい選手がいない場合は、1回だけ「引き直し」が可能です。</li>
             </ul>
         </div>
 
-        <button id="startGameBtn" class="start-btn" disabled>データを準備中...</button>
+        <div class="btn-container">
+            <button id="startGameBtn" class="start-btn" disabled>データを準備中...</button>
+            <button id="startPracticeBtn" class="start-btn practice-btn" disabled>準備中...</button>
+        </div>
     </div>
 
     <div id="gameScreen" style="display: none;">
         <h1>
             <span style="display: inline-block;">⚾ プロ野球</span>
             <span style="display: inline-block;">ドリームドラフトメーカー</span>
+            <span id="practiceBadge" class="practice-badge">練習モード</span>
         </h1>
         <div class="container">
             <div class="draft-zone" id="draftZone">
@@ -107,7 +127,7 @@
                     <div id="resultZone" class="result-zone">
                         <button id="resultBtn" class="result-btn">交渉権確定（結果発表）</button>
                         <div id="hrResult" style="display: none;">
-                            <p>チーム合計ホームラン数</p>
+                            <p id="resultTitle">チーム合計ホームラン数</p>
                             <div id="totalHrValue" class="total-hr">0本</div>
                         </div>
                     </div>

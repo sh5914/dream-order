@@ -1,6 +1,8 @@
 const landingPage = document.getElementById('landingPage');
 const gameScreen = document.getElementById('gameScreen');
 const startGameBtn = document.getElementById('startGameBtn');
+const startPracticeBtn = document.getElementById('startPracticeBtn'); // 追加
+const practiceBadge = document.getElementById('practiceBadge'); // 追加
 
 const playerList = document.getElementById('playerList');
 const board = document.getElementById('board');
@@ -8,6 +10,7 @@ const resultZone = document.getElementById('resultZone');
 const resultBtn = document.getElementById('resultBtn');
 const hrResult = document.getElementById('hrResult');
 const totalHrValue = document.getElementById('totalHrValue');
+const resultTitle = document.getElementById('resultTitle'); // 追加
 const roundText = document.getElementById('roundText');
 const randomTeamText = document.getElementById('randomTeamText');
 const draftZone = document.getElementById('draftZone');
@@ -20,6 +23,7 @@ const retryBtn = document.getElementById('retryBtn');
 const captureArea = document.getElementById('captureArea'); 
 
 let allData = {}; 
+let isPracticeMode = false; // ★ 練習モードかどうかのフラグ
 
 const POSITIONS = ["捕手", "一塁手", "二塁手", "三塁手", "遊撃手", "左翼手", "中堅手", "右翼手", "DH"];
 
@@ -39,7 +43,6 @@ let redrawsLeft = 1;
 let currentRandomYear = "";
 let currentRandomTeam = "";
 
-// ▼ データ読み込み機能 ▼
 async function loadData() {
     try {
         const response = await fetch('all_teams_2016_2024.json');
@@ -47,24 +50,36 @@ async function loadData() {
         
         createBoardSlots();
         
-        // データが完全に読み込めたら、スタートボタンを押せるようにする！
-        startGameBtn.textContent = "ドラフトを開始する";
+        // データが完全に読み込めたら、両方のボタンを押せるようにする
+        startGameBtn.textContent = "本番ドラフトを開始";
         startGameBtn.disabled = false;
+        
+        startPracticeBtn.textContent = "練習モードで開始";
+        startPracticeBtn.disabled = false;
 
     } catch (error) {
         startGameBtn.textContent = "読み込みエラー";
+        startPracticeBtn.textContent = "エラー";
         alert("データの読み込みに失敗しました。ページを再読み込みしてください。");
         console.error(error);
     }
 }
 
-// ▼ スタートボタンが押されたときの処理 ▼
+// ▼ 本番スタートボタン ▼
 startGameBtn.addEventListener('click', () => {
-    // LPを隠して、ゲーム画面を表示
+    isPracticeMode = false;
+    practiceBadge.style.display = 'none'; // バッジを隠す
     landingPage.style.display = 'none';
     gameScreen.style.display = 'block';
-    
-    // ドラフト開始！
+    startNextRound();
+});
+
+// ▼ 練習モードスタートボタン ▼
+startPracticeBtn.addEventListener('click', () => {
+    isPracticeMode = true;
+    practiceBadge.style.display = 'inline-block'; // バッジを表示
+    landingPage.style.display = 'none';
+    gameScreen.style.display = 'block';
     startNextRound();
 });
 
@@ -135,7 +150,6 @@ function displayPlayers() {
     let anyoneCanBeDrafted = false; 
 
     players.forEach(player => {
-        // 同姓同名でも年度が違えば選べる
         const isAlreadyDrafted = Object.values(myTeam).some(p => p && p.name === player.name && p.year === currentRandomYear);
         if (isAlreadyDrafted) return;
 
@@ -164,11 +178,14 @@ function displayPlayers() {
             buttonsHtml = `<span class="no-slot">※配置できる空き枠がありません</span>`;
         }
 
+        // ▼★変更：練習モードならホームラン数も表示する！▼
+        let hrDisplay = isPracticeMode ? ` | <span style="color:#f1c40f; font-weight:bold;">HR: ${player.hr}本</span>` : "";
+
         div.innerHTML = `
             <div class="player-info">
                 <div>
                     <strong>${player.name}</strong><br>
-                    <small>打席数: ${player.pa} | 守備: ${posText}</small>
+                    <small>打席数: ${player.pa} | 守備: ${posText}${hrDisplay}</small>
                 </div>
             </div>
             <div class="action-buttons">
@@ -217,6 +234,13 @@ resultBtn.addEventListener('click', () => {
         }
     });
 
+    // ▼★変更：結果画面のテキストに「(練習モード)」を付け足す処理▼
+    if (isPracticeMode) {
+        resultTitle.innerHTML = `チーム合計ホームラン数 <br><span style="font-size:16px; color:#aaa;">※練習モードの記録です</span>`;
+    } else {
+        resultTitle.textContent = `チーム合計ホームラン数`;
+    }
+
     totalHrValue.textContent = `${totalHr} 本`;
     hrResult.style.display = 'block';
     resultBtn.style.display = 'none';
@@ -226,7 +250,7 @@ resultBtn.addEventListener('click', () => {
 saveImgBtn.addEventListener('click', () => {
     html2canvas(captureArea, { backgroundColor: '#162447' }).then(canvas => {
         const link = document.createElement('a');
-        link.download = 'dream_team.png'; 
+        link.download = isPracticeMode ? 'dream_team_practice.png' : 'dream_team.png'; 
         link.href = canvas.toDataURL('image/png');
         link.click();
     });
@@ -270,10 +294,10 @@ retryBtn.addEventListener('click', () => {
     resultZone.style.display = 'none';     
     resultBtn.style.display = 'block';     
     shareControls.style.display = 'none';  
-    draftZone.style.display = 'block';     
-
-    startNextRound();
+    
+    // ゲーム画面を隠して、再びLP（タイトル画面）に戻るようにしました！
+    gameScreen.style.display = 'none';     
+    landingPage.style.display = 'block';     
 });
 
-// ▼ ゲーム起動時に裏側でデータを読み込む ▼
 loadData();
