@@ -7,6 +7,7 @@
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
+    <!-- Firebaseのプログラムを読み込む -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
@@ -27,6 +28,10 @@
         .practice-btn { background: #2980b9; box-shadow: 0 4px 15px rgba(41, 128, 185, 0.4); }
         .practice-btn:hover:not(:disabled) { background: #3498db; }
         .practice-badge { background: #f39c12; color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 16px; margin-left: 10px; vertical-align: middle; display: none; font-weight: bold; }
+
+        /* ▼ 追加：タイトル用のランキングボタン ▼ */
+        .ranking-btn { background: #f39c12; box-shadow: 0 4px 15px rgba(243, 156, 18, 0.4); width: 100%; max-width: 515px; margin-top: 15px; }
+        .ranking-btn:hover:not(:disabled) { background: #f1c40f; }
 
         .container { display: flex; flex-direction: row; gap: 20px; max-width: 1200px; margin: 0 auto; justify-content: center; }
         #gameScreen h1 { text-align: center; color: #e94560; margin-bottom: 20px; font-size: clamp(24px, 3vw, 36px); word-break: keep-all; }
@@ -81,7 +86,6 @@
         .ranking-input-area { display: flex; gap: 10px; margin-bottom: 15px; justify-content: center; }
         .ranking-input-area input { padding: 10px; border-radius: 4px; border: none; font-size: 16px; flex: 1; max-width: 200px; }
         
-        /* ▼▼ 追加：部門切り替えタブのスタイル ▼▼ */
         .rank-tabs { display: flex; gap: 5px; margin-bottom: 10px; border-bottom: 1px solid #444; }
         .rank-tab-btn { background: #0f3460; color: #aaa; border: none; padding: 10px 15px; font-size: 14px; font-weight: bold; border-radius: 6px 6px 0 0; cursor: pointer; flex: 1; }
         .rank-tab-btn.active { background: #e94560; color: white; }
@@ -112,6 +116,7 @@
 </head>
 <body>
 
+    <!-- ▼ タイトル画面 ▼ -->
     <div id="landingPage" class="landing-page">
         <h1>
             <span style="display: inline-block;">⚾ プロ野球</span>
@@ -133,8 +138,30 @@
             <button id="startGameBtn" class="start-btn" disabled>データを準備中...</button>
             <button id="startPracticeBtn" class="start-btn practice-btn" disabled>準備中...</button>
         </div>
+        <!-- ▼ 追加：ランキングを見るボタン ▼ -->
+        <button id="viewRankingBtn" class="start-btn ranking-btn">👑 全国ランキングを見る</button>
     </div>
 
+    <!-- ▼ 追加：タイトル用 ランキング閲覧画面 ▼ -->
+    <div id="titleRankingScreen" class="landing-page" style="display: none; max-width: 900px;">
+        <h2 style="color: #f1c40f; font-size: 32px; margin-bottom: 20px;">🏆 全国リーダーボード 🏆</h2>
+        
+        <div class="rank-tabs">
+            <button id="titleTabDiffBtn" class="rank-tab-btn active" onclick="switchTitleRankTab('diff')">📉 差分部門 (ロスが少ない順)</button>
+            <button id="titleTabHrBtn" class="rank-tab-btn" onclick="switchTitleRankTab('hr')">🔥 合計HR部門 (本数が多い順)</button>
+        </div>
+        
+        <div class="ranking-zone" style="margin-top: 0; min-height: 400px;">
+            <div id="titleRankingList">
+                <!-- ここにタイトル用ランキング表が入ります -->
+            </div>
+        </div>
+        
+        <button id="backToTitleBtn" class="action-btn btn-retry" style="margin-top: 25px; width: 250px; margin-inline: auto;">◀ タイトルへ戻る</button>
+    </div>
+    <!-- ▲ ここまで ▲ -->
+
+    <!-- ▼ ゲーム画面 ▼ -->
     <div id="gameScreen" style="display: none;">
         <h1>
             <span style="display: inline-block;">⚾ プロ野球</span>
@@ -171,6 +198,7 @@
                             <div id="totalHrValue" class="total-hr">0本</div>
                             <div id="optimalSummary" style="margin-bottom:20px;"></div>
                             
+                            <!-- 全国ランキングエリア -->
                             <div id="rankingZone" class="ranking-zone" style="display: none;">
                                 <h3>🏆 全国リーダーボード 🏆</h3>
                                 
@@ -199,6 +227,7 @@
         </div>
     </div>
 
-    <script src="app.js?v=13"></script>
+    <!-- キャッシュ対策を v=14 に更新 -->
+    <script src="app.js?v=14"></script>
 </body>
 </html>

@@ -29,6 +29,14 @@ const startPracticeBtn = document.getElementById('startPracticeBtn');
 const practiceBadge = document.getElementById('practiceBadge');
 const resetGameBtn = document.getElementById('resetGameBtn'); 
 
+// ▼ 追加：タイトル画面でのランキングボタン類 ▼
+const viewRankingBtn = document.getElementById('viewRankingBtn');
+const titleRankingScreen = document.getElementById('titleRankingScreen');
+const backToTitleBtn = document.getElementById('backToTitleBtn');
+const titleRankingList = document.getElementById('titleRankingList');
+const titleTabDiffBtn = document.getElementById('titleTabDiffBtn');
+const titleTabHrBtn = document.getElementById('titleTabHrBtn');
+
 const playerList = document.getElementById('playerList');
 const board = document.getElementById('board');
 const resultZone = document.getElementById('resultZone');
@@ -48,7 +56,7 @@ const copyImgBtn = document.getElementById('copyImgBtn');
 const retryBtn = document.getElementById('retryBtn');
 const captureArea = document.getElementById('captureArea'); 
 
-// ランキング用
+// 結果画面ランキング用
 const rankingZone = document.getElementById('rankingZone');
 const rankingInputArea = document.getElementById('rankingInputArea');
 const submitScoreBtn = document.getElementById('submitScoreBtn');
@@ -62,9 +70,10 @@ let isPracticeMode = false;
 let usedTeams = []; 
 let seenTeamsHistory = []; 
 
-let currentDiff = 0;   // 今回のスコア（差分）
-let currentTotalHr = 0; // 今回のスコア（合計HR）
-let currentRankTab = 'diff'; // 現在表示しているタブ ('diff' または 'hr')
+let currentDiff = 0;   
+let currentTotalHr = 0; 
+let currentRankTab = 'diff'; 
+let titleRankTab = 'diff'; // タイトル画面用のタブ状態
 
 const POSITIONS = ["捕手", "一塁手", "二塁手", "三塁手", "遊撃手", "左翼手", "中堅手", "右翼手", "DH"];
 const TEAM_ABBR = {
@@ -92,6 +101,84 @@ async function loadData() {
         alert("データ読み込み失敗");
     }
 }
+
+// ==========================================
+// ▼ 追加：タイトル画面でのランキング表示制御 ▼
+// ==========================================
+viewRankingBtn.addEventListener('click', () => {
+    landingPage.style.display = 'none';
+    titleRankingScreen.style.display = 'block';
+    
+    // 開いたときに差分タブを初期選択して読み込む
+    titleRankTab = 'diff';
+    titleTabDiffBtn.classList.add('active');
+    titleTabHrBtn.classList.remove('active');
+    loadTitleRankings();
+});
+
+backToTitleBtn.addEventListener('click', () => {
+    titleRankingScreen.style.display = 'none';
+    landingPage.style.display = 'block';
+});
+
+window.switchTitleRankTab = function(tabType) {
+    if (titleRankTab === tabType) return;
+    titleRankTab = tabType;
+    
+    if (titleRankTab === 'diff') {
+        titleTabDiffBtn.classList.add('active');
+        titleTabHrBtn.classList.remove('active');
+    } else {
+        titleTabHrBtn.classList.add('active');
+        titleTabDiffBtn.classList.remove('active');
+    }
+    loadTitleRankings();
+}
+
+async function loadTitleRankings() {
+    titleRankingList.innerHTML = "<p style='text-align:center; color:#aaa; margin-top:30px;'>リーダーボードを読み込み中...</p>";
+    try {
+        let query;
+        let scoreHeader = "";
+        
+        if (titleRankTab === 'diff') {
+            query = db.collection("rankings").orderBy("diff", "asc").orderBy("timestamp", "asc");
+            scoreHeader = "理論値との差";
+        } else {
+            query = db.collection("rankings").orderBy("totalHr", "desc").orderBy("timestamp", "asc");
+            scoreHeader = "合計HR数";
+        }
+
+        const snapshot = await query.limit(10).get();
+
+        let html = `<table class="ranking-table" style="font-size: 18px;">
+                        <tr><th>順位</th><th>監督名</th><th>${scoreHeader}</th></tr>`;
+        let rank = 1;
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            let rankClass = rank === 1 ? 'rank-1' : (rank === 2 ? 'rank-2' : (rank === 3 ? 'rank-3' : ''));
+            let scoreText = titleRankTab === 'diff' ? `-${data.diff}本` : `${data.totalHr}本`;
+            
+            html += `<tr>
+                <td class="${rankClass}" style="text-align:center; padding: 12px;">${rank}位</td>
+                <td style="padding: 12px;">${data.name}</td>
+                <td style="text-align:center; color:#f1c40f; font-weight:bold; padding: 12px;">${scoreText}</td>
+            </tr>`;
+            rank++;
+        });
+        html += `</table>`;
+        
+        if (snapshot.empty) {
+            html = "<p style='color:#aaa; text-align:center; margin-top:30px;'>まだデータがありません。</p>";
+        }
+        titleRankingList.innerHTML = html;
+        
+    } catch(e) {
+        console.error(e);
+        titleRankingList.innerHTML = "<p style='color:#ff6b6b; text-align:center; margin-top:30px;'>ランキングの取得に失敗しました。</p>";
+    }
+}
+// ==========================================
 
 startGameBtn.addEventListener('click', () => {
     isPracticeMode = false; 
@@ -267,7 +354,7 @@ function calculateOptimalDraft(historyTeams) {
 }
 
 resultBtn.addEventListener('click', () => {
-    currentTotalHr = 0; // スコア初期化
+    currentTotalHr = 0; 
     const optimal = calculateOptimalDraft(seenTeamsHistory);
     teamZone.classList.add('expanded');
     boardTitle.textContent = "【ドラフト結果・最強との比較】";
@@ -291,7 +378,6 @@ resultBtn.addEventListener('click', () => {
 
     totalHrValue.textContent = `${currentTotalHr} 本`;
 
-    // 差分（ロス本数）を計算
     currentDiff = optimal.maxHr - currentTotalHr;
 
     if (currentDiff === 0) {
@@ -304,7 +390,6 @@ resultBtn.addEventListener('click', () => {
     resultBtn.style.display = 'none';
     shareControls.style.display = 'flex'; 
     
-    // ランキングの表示処理
     rankingZone.style.display = 'block';
     if (isPracticeMode) {
         rankingInputArea.style.display = 'none'; 
@@ -314,7 +399,6 @@ resultBtn.addEventListener('click', () => {
         submitScoreBtn.textContent = "スコアを登録";
     }
     
-    // 最初のタブ（差分部門）を読み込む
     currentRankTab = 'diff';
     tabDiffBtn.classList.add('active');
     tabHrBtn.classList.remove('active');
@@ -322,7 +406,7 @@ resultBtn.addEventListener('click', () => {
 });
 
 // ==========================================
-// 3. 2部門対応・ランキング送受信ロジック
+// 3. 結果画面：2部門対応・ランキング送受信ロジック
 // ==========================================
 submitScoreBtn.addEventListener('click', async () => {
     const name = playerNameInput.value.trim() || "名無し監督";
@@ -330,7 +414,6 @@ submitScoreBtn.addEventListener('click', async () => {
     submitScoreBtn.textContent = "送信中...";
 
     try {
-        // ★重要：diff（差分）と totalHr（合計本数）の、両方の部門用スコアを一発で保存！
         await db.collection("rankings").add({
             name: name,
             diff: currentDiff,
@@ -348,9 +431,8 @@ submitScoreBtn.addEventListener('click', async () => {
     }
 });
 
-// ▼▼ 追加：タブボタンが押された時の切り替え命令 ▼▼
 window.switchRankTab = function(tabType) {
-    if (currentRankTab === tabType) return; // すでに選択中なら無視
+    if (currentRankTab === tabType) return; 
     currentRankTab = tabType;
     
     if (currentRankTab === 'diff') {
@@ -360,23 +442,19 @@ window.switchRankTab = function(tabType) {
         tabHrBtn.classList.add('active');
         tabDiffBtn.classList.remove('active');
     }
-    loadRankings(); // 切り替えたクエリで再読み込み
+    loadRankings(); 
 }
 
-// ランキング（トップ10）を読み込んで表示する関数
 async function loadRankings() {
     rankingList.innerHTML = "<p style='text-align:center; color:#aaa;'>リーダーボードを読み込み中...</p>";
     try {
         let query;
         let scoreHeader = "";
         
-        // ★現在のアクティブタブによって、並び替え(orderBy)の条件をガバッと切り替える！
         if (currentRankTab === 'diff') {
-            // 差分部門：ロス本数が「小さい」順（asc）
             query = db.collection("rankings").orderBy("diff", "asc").orderBy("timestamp", "asc");
             scoreHeader = "理論値との差";
         } else {
-            // 合計HR部門：本数が「大きい」順（desc）
             query = db.collection("rankings").orderBy("totalHr", "desc").orderBy("timestamp", "asc");
             scoreHeader = "合計HR数";
         }
@@ -389,8 +467,6 @@ async function loadRankings() {
         snapshot.forEach(doc => {
             const data = doc.data();
             let rankClass = rank === 1 ? 'rank-1' : (rank === 2 ? 'rank-2' : (rank === 3 ? 'rank-3' : ''));
-            
-            // 表示するスコアテキストの切り替え
             let scoreText = currentRankTab === 'diff' ? `-${data.diff}本` : `${data.totalHr}本`;
             
             html += `<tr>
@@ -409,7 +485,7 @@ async function loadRankings() {
         
     } catch(e) {
         console.error(e);
-        rankingList.innerHTML = "<p style='color:#ff6b6b; text-align:center;'>ランキングの取得に失敗しました。<br><small style='color:#666;'>※Firebaseの『インデックス作成（Index）』が必要な場合があります。ブラウザのF12開発者ツールのコンソールログを確認してください。</small></p>";
+        rankingList.innerHTML = "<p style='color:#ff6b6b; text-align:center;'>ランキングの取得に失敗しました。</p>";
     }
 }
 
@@ -436,11 +512,14 @@ copyImgBtn.addEventListener('click', () => {
 
 function retryGame() {
     currentRound = 1; redrawsLeft = 1;
-    myTeam = { "捕手": null, "一塁手": null, "二塁手": null, "三塁手": null, "遊撃手": null, "leftField": null, "左翼手": null, "中堅手": null, "右翼手": null, "DH": null };
-    // オブジェクト初期化のタイポ修正（綺麗にリセット）
     myTeam = { "捕手": null, "一塁手": null, "二塁手": null, "三塁手": null, "遊撃手": null, "左翼手": null, "中堅手": null, "右翼手": null, "DH": null };
     usedTeams = []; seenTeamsHistory = [];
-    createBoardSlots();                     
+    createBoardSlots();     
+    
+    // パスして引き直すボタンを復活させる
+    redrawBtn.textContent = "パスして引き直す（残り1回）";
+    redrawBtn.disabled = false;            
+
     hrResult.style.display = 'none';       
     resultZone.style.display = 'none';     
     resultBtn.style.display = 'block';     
