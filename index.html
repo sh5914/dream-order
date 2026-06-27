@@ -6,11 +6,13 @@
     <title>プロ野球 ドリームドラフトメーカー</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
     <style>
         body { font-family: 'Helvetica Neue', Arial, sans-serif; padding: 20px; background-color: #1a1a2e; color: #fff; margin: 0; }
         
-        /* タイトル画面 */
         .landing-page { text-align: center; margin-top: 8vh; max-width: 800px; margin-left: auto; margin-right: auto; }
         .landing-page h1 { font-size: clamp(28px, 4vw, 48px); margin-bottom: 10px; word-break: keep-all; color: #e94560; }
         .landing-page .subtitle { font-size: 20px; color: #f1c40f; margin-bottom: 40px; font-weight: bold; }
@@ -26,11 +28,9 @@
         .practice-btn:hover:not(:disabled) { background: #3498db; }
         .practice-badge { background: #f39c12; color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 16px; margin-left: 10px; vertical-align: middle; display: none; font-weight: bold; }
 
-        /* メインコンテナ */
         .container { display: flex; flex-direction: row; gap: 20px; max-width: 1200px; margin: 0 auto; justify-content: center; }
         #gameScreen h1 { text-align: center; color: #e94560; margin-bottom: 20px; font-size: clamp(24px, 3vw, 36px); word-break: keep-all; }
         
-        /* ドラフトゾーン */
         .draft-zone { flex: 1; background: #162447; padding: 20px; border-radius: 10px; height: 80vh; overflow-y: auto; }
         .draft-header { text-align: center; background: #0f3460; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #e94560; }
         .round-text { font-size: 24px; font-weight: bold; color: #fff; margin: 0; }
@@ -39,61 +39,70 @@
         .redraw-btn { background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 16px; }
         .redraw-btn:hover { background: #2980b9; }
         .redraw-btn:disabled { background: #555; cursor: not-allowed; color: #aaa; }
-        
         .reset-btn { background: #e74c3c; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 16px; display: none; }
         .reset-btn:hover { background: #c0392b; }
 
-        /* 選手カード */
         .player-card { background: #1f4068; padding: 15px; margin-bottom: 12px; border-radius: 6px; display: flex; flex-direction: column; gap: 10px; border-left: 5px solid #e94560; }
         .player-info { line-height: 1.4; display: flex; justify-content: space-between; align-items: center; }
-        
         .action-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
         .draft-btn { background: #e94560; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold; }
         .draft-btn:hover { background: #ff6b6b; }
         .dh-btn { background: #9b59b6; } .dh-btn:hover { background: #8e44ad; }
         .no-slot { color: #ff6b6b; font-size: 14px; font-weight: bold; }
 
-        /* チームボード（結果画面含む） */
         .team-zone { width: 450px; background: #162447; border-radius: 10px; position: sticky; top: 20px; height: fit-content; transition: width 0.3s; }
-        /* 結果発表後は横幅を広げる（PCのみ） */
         .team-zone.expanded { width: 900px; } 
 
         .capture-area { padding: 20px; background: #162447; border-radius: 10px; } 
         
-        /* ポジションスロット（比較モード） */
         .position-slot { 
             background: #0f3460; padding: 12px; margin-bottom: 10px; border-radius: 6px; 
             display: grid; grid-template-columns: 80px 1fr; border: 1px dashed #e94560; gap: 10px;
         }
-        /* 拡張時（比較モード）のグリッド */
         .expanded .position-slot { grid-template-columns: 80px 1fr 1fr; border-style: solid; }
         
         .slot-title { font-weight: bold; color: #4ecc71; }
         .slot-player { text-align: left; color: #fff; font-size: 14px; }
-        .slot-best { text-align: left; color: #f1c40f; font-size: 14px; display: none; } /* 初期は隠す */
+        .slot-best { text-align: left; color: #f1c40f; font-size: 14px; display: none; }
         .expanded .slot-best { display: block; border-left: 1px solid #e94560; padding-left: 10px; }
 
         .header-labels { display: none; grid-template-columns: 80px 1fr 1fr; margin-bottom: 5px; font-size: 12px; color: #aaa; text-align: center; }
         .expanded .header-labels { display: grid; }
 
-        /* 結果発表エリア */
         .result-zone { text-align: center; margin-top: 20px; padding: 15px; background: #0f3460; border-radius: 6px; display: none; }
         .result-btn { background: #4ecc71; color: white; border: none; padding: 12px 30px; font-size: 18px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; }
         .result-btn:hover { background: #2ecc71; }
-        .total-hr { font-size: 32px; color: #f1c40f; font-weight: bold; margin-top: 15px; margin-bottom: 15px;}
         
-        /* ボタン群 */
+        .total-hr { font-size: 40px; color: #f1c40f; font-weight: bold; margin: 10px 0; }
+        
+        /* ランキング表のデザイン */
+        .ranking-zone { margin-top: 20px; background: #1a1a2e; padding: 15px; border-radius: 8px; border: 2px solid #f1c40f; }
+        .ranking-zone h3 { color: #f1c40f; margin-top: 0; margin-bottom: 15px; text-align: center; }
+        .ranking-input-area { display: flex; gap: 10px; margin-bottom: 15px; justify-content: center; }
+        .ranking-input-area input { padding: 10px; border-radius: 4px; border: none; font-size: 16px; flex: 1; max-width: 200px; }
+        
+        /* ▼▼ 追加：部門切り替えタブのスタイル ▼▼ */
+        .rank-tabs { display: flex; gap: 5px; margin-bottom: 10px; border-bottom: 1px solid #444; }
+        .rank-tab-btn { background: #0f3460; color: #aaa; border: none; padding: 10px 15px; font-size: 14px; font-weight: bold; border-radius: 6px 6px 0 0; cursor: pointer; flex: 1; }
+        .rank-tab-btn.active { background: #e94560; color: white; }
+
+        .ranking-table { width: 100%; border-collapse: collapse; margin-top: 5px; }
+        .ranking-table th { border-bottom: 2px solid #e94560; padding: 8px; color: #aaa; font-size: 14px; }
+        .ranking-table td { border-bottom: 1px solid #333; padding: 10px 8px; font-size: 16px; }
+        .rank-1 { color: #ffdf00; font-weight: bold; font-size: 20px; }
+        .rank-2 { color: #c0c0c0; font-weight: bold; font-size: 18px; }
+        .rank-3 { color: #cd7f32; font-weight: bold; font-size: 18px; }
+
         .share-btn-group { display: flex; flex-direction: column; gap: 10px; }
         .action-btn { border: none; padding: 12px; font-size: 16px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; color: white; }
         .btn-save { background: #2ecc71; } .btn-save:hover { background: #27ae60; }
         .btn-copy { background: #f39c12; } .btn-copy:hover { background: #e67e22; }
         .btn-retry { background: #3498db; margin-top: 5px; } .btn-retry:hover { background: #2980b9; }
 
-        /* レスポンシブ対応 */
         @media screen and (max-width: 900px) {
             .container { flex-direction: column; align-items: center; }
             .team-zone, .team-zone.expanded { width: 100%; box-sizing: border-box; position: static; }
-            .expanded .position-slot { grid-template-columns: 70px 1fr; } /* スマホは縦に並ぶので結局2列に */
+            .expanded .position-slot { grid-template-columns: 70px 1fr; }
             .expanded .slot-best { border-left: none; padding-left: 0; padding-top: 5px; border-top: 1px solid #333; margin-top: 5px; }
             .expanded .header-labels { display: none; }
             .draft-zone { width: 100%; height: 55vh; }
@@ -113,10 +122,10 @@
         <div class="rules-box">
             <h2>【 ルール説明 】</h2>
             <ul>
-                <li>ランダムに提示される「年度」と「球団」の中から、選手を1名指名します。（全9巡）</li>
-                <li>DHを含む全9ポジションを埋めるとドラフト終了です。</li>
-                <li><strong>選手のホームラン数は結果発表まで秘密！</strong> 知識を頼りに指名してください。</li>
+                <li>全9巡でDHを含む全9ポジションを埋めます。</li>
+                <li><strong>選手のホームラン数は結果発表まで秘密！</strong></li>
                 <li>どうしても欲しい選手がいない場合は、1回だけ「引き直し」が可能です。</li>
+                <li><strong>本番モード終了後、全国ランキングの「差分部門」と「合計HR部門」の2つのタイトルに登録できます！</strong></li>
             </ul>
         </div>
 
@@ -158,9 +167,25 @@
                     <div id="resultZone" class="result-zone">
                         <button id="resultBtn" class="result-btn">交渉権確定（結果発表）</button>
                         <div id="hrResult" style="display: none;">
-                            <p id="resultTitle">チーム合計ホームラン数</p>
+                            <p id="resultTitle" style="margin-bottom: 0;">チーム合計ホームラン数</p>
                             <div id="totalHrValue" class="total-hr">0本</div>
-                            <div id="optimalSummary" style="margin-bottom:10px;"></div>
+                            <div id="optimalSummary" style="margin-bottom:20px;"></div>
+                            
+                            <div id="rankingZone" class="ranking-zone" style="display: none;">
+                                <h3>🏆 全国リーダーボード 🏆</h3>
+                                
+                                <div id="rankingInputArea" class="ranking-input-area">
+                                    <input type="text" id="playerNameInput" placeholder="監督名を入力 (10文字以内)" maxlength="10">
+                                    <button id="submitScoreBtn" class="action-btn btn-save" style="width: auto; padding: 10px 20px;">スコアを登録</button>
+                                </div>
+                                
+                                <div class="rank-tabs">
+                                    <button id="tabDiffBtn" class="rank-tab-btn active" onclick="switchRankTab('diff')">📉 差分部門 (ロスが少ない順)</button>
+                                    <button id="tabHrBtn" class="rank-tab-btn" onclick="switchRankTab('hr')">🔥 合計HR部門 (本数が多い順)</button>
+                                </div>
+                                
+                                <div id="rankingList"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -174,6 +199,6 @@
         </div>
     </div>
 
-    <script src="app.js?v=9"></script>
+    <script src="app.js?v=13"></script>
 </body>
 </html>

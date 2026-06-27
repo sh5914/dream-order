@@ -1,7 +1,29 @@
+// ==========================================
+// 1. Firebaseの設定（あなたの暗号キーを埋め込み済み）
+// ==========================================
+const firebaseConfig = {
+    apiKey: "AIzaSyBfEa4WGw9icggORrj1z5GIEw4nlwMoB7o",
+    authDomain: "draft-maker-e8f7b.firebaseapp.com",
+    projectId: "draft-maker-e8f7b",
+    storageBucket: "draft-maker-e8f7b.firebasestorage.app",
+    messagingSenderId: "509382175409",
+    appId: "1:509382175409:web:9e5787c889b1f0c4465090",
+    measurementId: "G-ZBLZ9P2KWC"
+};
+
+// Firebaseの初期化
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
+const db = firebase.firestore();
+
+// ==========================================
+// 2. ゲームの基本設定
+// ==========================================
 const landingPage = document.getElementById('landingPage');
 const gameScreen = document.getElementById('gameScreen');
-const teamZone = document.getElementById('teamZone'); // 追加
-const boardTitle = document.getElementById('boardTitle'); // 追加
+const teamZone = document.getElementById('teamZone'); 
+const boardTitle = document.getElementById('boardTitle'); 
 const startGameBtn = document.getElementById('startGameBtn');
 const startPracticeBtn = document.getElementById('startPracticeBtn');
 const practiceBadge = document.getElementById('practiceBadge');
@@ -26,23 +48,31 @@ const copyImgBtn = document.getElementById('copyImgBtn');
 const retryBtn = document.getElementById('retryBtn');
 const captureArea = document.getElementById('captureArea'); 
 
+// ランキング用
+const rankingZone = document.getElementById('rankingZone');
+const rankingInputArea = document.getElementById('rankingInputArea');
+const submitScoreBtn = document.getElementById('submitScoreBtn');
+const playerNameInput = document.getElementById('playerNameInput');
+const rankingList = document.getElementById('rankingList');
+const tabDiffBtn = document.getElementById('tabDiffBtn');
+const tabHrBtn = document.getElementById('tabHrBtn');
+
 let allData = {}; 
 let isPracticeMode = false; 
 let usedTeams = []; 
 let seenTeamsHistory = []; 
 
-const POSITIONS = ["捕手", "一塁手", "二塁手", "三塁手", "遊撃手", "左翼手", "中堅手", "右翼手", "DH"];
+let currentDiff = 0;   // 今回のスコア（差分）
+let currentTotalHr = 0; // 今回のスコア（合計HR）
+let currentRankTab = 'diff'; // 現在表示しているタブ ('diff' または 'hr')
 
+const POSITIONS = ["捕手", "一塁手", "二塁手", "三塁手", "遊撃手", "左翼手", "中堅手", "右翼手", "DH"];
 const TEAM_ABBR = {
     "広島": "広", "巨人": "巨", "阪神": "神", "DeNA": "De", "ヤクルト": "ヤ", "中日": "中",
     "ソフトバンク": "ソ", "日本ハム": "日", "ロッテ": "ロ", "西武": "西", "オリックス": "オ", "楽天": "楽"
 };
 
-let myTeam = {
-    "捕手": null, "一塁手": null, "二塁手": null, "三塁手": null,
-    "遊撃手": null, "左翼手": null, "中堅手": null, "右翼手": null, "DH": null
-};
-
+let myTeam = { "捕手": null, "一塁手": null, "二塁手": null, "三塁手": null, "遊撃手": null, "左翼手": null, "中堅手": null, "右翼手": null, "DH": null };
 let currentRound = 1;
 const MAX_ROUNDS = 9;
 let redrawsLeft = 1; 
@@ -87,17 +117,7 @@ startPracticeBtn.addEventListener('click', () => {
 
 resetGameBtn.addEventListener('click', () => {
     if (confirm("ドラフトを最初からやり直しますか？")) {
-        currentRound = 1; redrawsLeft = 1;
-        myTeam = { "捕手": null, "一塁手": null, "二塁手": null, "三塁手": null, "遊撃手": null, "左翼手": null, "中堅手": null, "右翼手": null, "DH": null };
-        usedTeams = []; seenTeamsHistory = [];
-        createBoardSlots();                     
-        redrawBtn.textContent = "パスして引き直す（残り1回）";
-        redrawBtn.disabled = false;            
-        hrResult.style.display = 'none';       
-        resultZone.style.display = 'none';     
-        resultBtn.style.display = 'block';     
-        shareControls.style.display = 'none';  
-        startNextRound(); 
+        retryGame(); 
     }
 });
 
@@ -202,7 +222,6 @@ window.draftPlayer = function(name, hr, chosenPosition) {
     startNextRound();
 }
 
-// DFS 最適解計算
 function calculateOptimalDraft(historyTeams) {
     const N = historyTeams.length; 
     const maxMatrix = historyTeams.map(teamData => {
@@ -248,57 +267,159 @@ function calculateOptimalDraft(historyTeams) {
 }
 
 resultBtn.addEventListener('click', () => {
-    let totalHr = 0;
+    currentTotalHr = 0; // スコア初期化
     const optimal = calculateOptimalDraft(seenTeamsHistory);
-    
-    // 画面を拡張
     teamZone.classList.add('expanded');
     boardTitle.textContent = "【ドラフト結果・最強との比較】";
 
     POSITIONS.forEach(pos => {
         const player = myTeam[pos];
         const optP = optimal.optimalLineup.find(o => o.pos === pos);
-        
-        // ユーザーの表示更新
         if (player) {
-            totalHr += player.hr;
+            currentTotalHr += player.hr;
             const abbr = TEAM_ABBR[player.team] || player.team; 
-            document.getElementById(`player-user-${pos}`).innerHTML = 
-                `${player.year} ${player.name}(${abbr}) <span style="color:#f1c40f; font-weight:bold;">${player.hr}本</span>`;
+            document.getElementById(`player-user-${pos}`).innerHTML = `${player.year} ${player.name}(${abbr}) <span style="color:#f1c40f; font-weight:bold;">${player.hr}本</span>`;
         }
-
-        // 最適解の表示更新
         if (optP && optP.year !== "----") {
             const optAbbr = TEAM_ABBR[optP.team] || optP.team;
-            document.getElementById(`player-best-${pos}`).innerHTML = 
-                `${optP.year} ${optP.player.name}(${optAbbr}) <span style="color:#f1c40f; font-weight:bold;">${optP.player.hr}本</span>`;
+            document.getElementById(`player-best-${pos}`).innerHTML = `${optP.year} ${optP.player.name}(${optAbbr}) <span style="color:#f1c40f; font-weight:bold;">${optP.player.hr}本</span>`;
         }
     });
 
-    if (isPracticeMode) {
-        resultTitle.innerHTML = `チーム合計ホームラン数 <br><span style="font-size:14px; color:#aaa;">※練習モード</span>`;
-    } else {
-        resultTitle.textContent = `チーム合計ホームラン数`;
-    }
+    if (isPracticeMode) resultTitle.innerHTML = `チーム合計ホームラン数 <span style="font-size:14px; color:#aaa;">※練習モード</span>`;
+    else resultTitle.textContent = `チーム合計ホームラン数`;
 
-    totalHrValue.textContent = `${totalHr} 本`;
-    
-    // サマリー表示
-    if (totalHr >= optimal.maxHr) {
-        optimalSummary.innerHTML = `<p style="color:#4ecc71; font-weight:bold;">👑 パーフェクト！理論上の最大値（${optimal.maxHr}本）を達成しました！</p>`;
+    totalHrValue.textContent = `${currentTotalHr} 本`;
+
+    // 差分（ロス本数）を計算
+    currentDiff = optimal.maxHr - currentTotalHr;
+
+    if (currentDiff === 0) {
+        optimalSummary.innerHTML = `<p style="color:#4ecc71; font-weight:bold; margin:0; font-size:18px;">👑 パーフェクト！理論上の最大値を達成しました！</p>`;
     } else {
-        optimalSummary.innerHTML = `<p style="color:#f1c40f; font-weight:bold;">💡 理論上の最大値は ${optimal.maxHr}本 でした。</p>`;
+        optimalSummary.innerHTML = `<p style="color:#f1c40f; font-weight:bold; margin:0; font-size:18px;">💡 理論上の最大値は ${optimal.maxHr}本 でした。(マイナス ${currentDiff}本)</p>`;
     }
 
     hrResult.style.display = 'block';
     resultBtn.style.display = 'none';
     shareControls.style.display = 'flex'; 
+    
+    // ランキングの表示処理
+    rankingZone.style.display = 'block';
+    if (isPracticeMode) {
+        rankingInputArea.style.display = 'none'; 
+    } else {
+        rankingInputArea.style.display = 'flex';
+        submitScoreBtn.disabled = false;
+        submitScoreBtn.textContent = "スコアを登録";
+    }
+    
+    // 最初のタブ（差分部門）を読み込む
+    currentRankTab = 'diff';
+    tabDiffBtn.classList.add('active');
+    tabHrBtn.classList.remove('active');
+    loadRankings();
 });
 
+// ==========================================
+// 3. 2部門対応・ランキング送受信ロジック
+// ==========================================
+submitScoreBtn.addEventListener('click', async () => {
+    const name = playerNameInput.value.trim() || "名無し監督";
+    submitScoreBtn.disabled = true;
+    submitScoreBtn.textContent = "送信中...";
+
+    try {
+        // ★重要：diff（差分）と totalHr（合計本数）の、両方の部門用スコアを一発で保存！
+        await db.collection("rankings").add({
+            name: name,
+            diff: currentDiff,
+            totalHr: currentTotalHr,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        rankingInputArea.style.display = 'none';
+        loadRankings(); 
+    } catch (error) {
+        console.error("エラー:", error);
+        alert("ランキングの登録に失敗しました。");
+        submitScoreBtn.disabled = false;
+        submitScoreBtn.textContent = "スコアを登録";
+    }
+});
+
+// ▼▼ 追加：タブボタンが押された時の切り替え命令 ▼▼
+window.switchRankTab = function(tabType) {
+    if (currentRankTab === tabType) return; // すでに選択中なら無視
+    currentRankTab = tabType;
+    
+    if (currentRankTab === 'diff') {
+        tabDiffBtn.classList.add('active');
+        tabHrBtn.classList.remove('active');
+    } else {
+        tabHrBtn.classList.add('active');
+        tabDiffBtn.classList.remove('active');
+    }
+    loadRankings(); // 切り替えたクエリで再読み込み
+}
+
+// ランキング（トップ10）を読み込んで表示する関数
+async function loadRankings() {
+    rankingList.innerHTML = "<p style='text-align:center; color:#aaa;'>リーダーボードを読み込み中...</p>";
+    try {
+        let query;
+        let scoreHeader = "";
+        
+        // ★現在のアクティブタブによって、並び替え(orderBy)の条件をガバッと切り替える！
+        if (currentRankTab === 'diff') {
+            // 差分部門：ロス本数が「小さい」順（asc）
+            query = db.collection("rankings").orderBy("diff", "asc").orderBy("timestamp", "asc");
+            scoreHeader = "理論値との差";
+        } else {
+            // 合計HR部門：本数が「大きい」順（desc）
+            query = db.collection("rankings").orderBy("totalHr", "desc").orderBy("timestamp", "asc");
+            scoreHeader = "合計HR数";
+        }
+
+        const snapshot = await query.limit(10).get();
+
+        let html = `<table class="ranking-table">
+                        <tr><th>順位</th><th>監督名</th><th>${scoreHeader}</th></tr>`;
+        let rank = 1;
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            let rankClass = rank === 1 ? 'rank-1' : (rank === 2 ? 'rank-2' : (rank === 3 ? 'rank-3' : ''));
+            
+            // 表示するスコアテキストの切り替え
+            let scoreText = currentRankTab === 'diff' ? `-${data.diff}本` : `${data.totalHr}本`;
+            
+            html += `<tr>
+                <td class="${rankClass}" style="text-align:center;">${rank}位</td>
+                <td>${data.name}</td>
+                <td style="text-align:center; color:#f1c40f; font-weight:bold;">${scoreText}</td>
+            </tr>`;
+            rank++;
+        });
+        html += `</table>`;
+        
+        if (snapshot.empty) {
+            html = "<p style='color:#aaa; text-align:center;'>まだデータがありません。</p>";
+        }
+        rankingList.innerHTML = html;
+        
+    } catch(e) {
+        console.error(e);
+        rankingList.innerHTML = "<p style='color:#ff6b6b; text-align:center;'>ランキングの取得に失敗しました。<br><small style='color:#666;'>※Firebaseの『インデックス作成（Index）』が必要な場合があります。ブラウザのF12開発者ツールのコンソールログを確認してください。</small></p>";
+    }
+}
+
+// ==========================================
+// ボタン類・その他機能
+// ==========================================
 saveImgBtn.addEventListener('click', () => {
     html2canvas(captureArea, { backgroundColor: '#162447', width: captureArea.offsetWidth }).then(canvas => {
         const link = document.createElement('a');
-        link.download = 'dream_team_result.png'; 
+        link.download = isPracticeMode ? 'dream_team_practice.png' : 'dream_team.png'; 
         link.href = canvas.toDataURL('image/png');
         link.click();
     });
@@ -313,8 +434,10 @@ copyImgBtn.addEventListener('click', () => {
     });
 });
 
-retryBtn.addEventListener('click', () => {
+function retryGame() {
     currentRound = 1; redrawsLeft = 1;
+    myTeam = { "捕手": null, "一塁手": null, "二塁手": null, "三塁手": null, "遊撃手": null, "leftField": null, "左翼手": null, "中堅手": null, "右翼手": null, "DH": null };
+    // オブジェクト初期化のタイポ修正（綺麗にリセット）
     myTeam = { "捕手": null, "一塁手": null, "二塁手": null, "三塁手": null, "遊撃手": null, "左翼手": null, "中堅手": null, "右翼手": null, "DH": null };
     usedTeams = []; seenTeamsHistory = [];
     createBoardSlots();                     
@@ -322,8 +445,11 @@ retryBtn.addEventListener('click', () => {
     resultZone.style.display = 'none';     
     resultBtn.style.display = 'block';     
     shareControls.style.display = 'none';  
+    rankingZone.style.display = 'none'; 
     gameScreen.style.display = 'none';     
     landingPage.style.display = 'block';     
-});
+}
+
+retryBtn.addEventListener('click', retryGame);
 
 loadData();
